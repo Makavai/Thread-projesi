@@ -1,0 +1,411 @@
+/////////// Yazlab2
+
+package yazlab2;
+
+import java.util.ArrayList;
+import java.util.Random;
+
+public class Yazlab2 {
+
+    public static void main(String[] args) {
+// THREAD BEKLEME        Thread.sleep(50);
+        ArrayList<Sunucu> snclar=new ArrayList<Sunucu>();
+        Sunucu ana=new Sunucu();//Sunucu(10000,100,200);
+        snclar.add(ana);
+        snclar.add(new Sunucu(ana,5000,50,300)); snclar.add(new Sunucu(ana,5000,50,300));
+        Istekal aia=new Istekal(ana);
+        Istekdon aid=new Istekdon(ana);
+        aia.start(); 
+        aid.start();
+        Sunbas al1=new Sunbas(snclar);   
+        al1.start();
+        Sunkont asd=new Sunkont(snclar);
+        asd.start();
+        Kapasite yaz=new Kapasite(snclar);
+        yaz.start();
+    }
+}
+
+///////////////// Sunucu //////////////////////
+
+package yazlab2;
+
+public class Sunucu {
+    private int islimit;// Ana 10.000 Alt 5.000 EN SONDA DÜZELT ŞİMDİLİK 1000 DE ÇALIŞIYORUM
+    
+    private int iskabul;// 100        50
+    private int iskasu;//  200ms        200ms
+    private float kapas;
+    private int issure;//  200ms        300ms
+    private int islem;
+    //private int isdön;//   50         50
+    private Sunucu ansu;
+    private boolean tdur;
+    public Sunucu(){
+        islimit=10000;
+        iskabul=200;
+        issure=200;
+        islem=0;
+        iskasu=200;
+        ansu=null;
+        kapas=0;
+        tdur=false;
+    }
+    public Sunucu(Sunucu suu,int a,int b,int c){
+        ansu=suu;
+        islimit=a;
+        iskabul=b;
+        issure=c;
+        islem=0;
+        iskasu=200;
+        kapas=0;
+        tdur=false;
+    }
+
+    public int getislimit() {
+        return islimit;
+    }
+    public void setislimit(int islimit) {
+        this.islimit = islimit;
+    }
+    public int getiskabul() {
+        return iskabul;
+    }
+    public void setiskabul(int iskabul) {
+        this.iskabul = iskabul;
+    }
+    public int getissure() {
+        return issure;
+    }
+    public void setissure(int issure) {
+        this.issure = issure;
+    } 
+    public int getislem() {
+        return islem;
+    }
+    public void setislem(int islem) {
+        this.islem = islem;
+    }
+    public int getiskasu() {
+        return iskasu;
+    }
+    public void setiskasu(int iskasu) {
+        this.iskasu = iskasu;
+    }
+    public Sunucu getAnsu() {
+        return ansu;
+    }
+    public void setAnsu(Sunucu ansu) {
+        this.ansu = ansu;
+    }
+    public float getKapas() {
+        return kapas;
+    }
+    public void setKapas(float kapas) {
+        this.kapas = kapas;
+    }
+    public boolean isTdur() {
+        return tdur;
+    }
+    public void setTdur(boolean tdur) {
+        this.tdur = tdur;
+    }
+    
+}
+
+///////////////// Istekal //////////
+
+package yazlab2;
+
+import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class Istekal extends Thread {
+    
+    private Sunucu sun;
+    public Istekal(Sunucu gels){
+        sun=gels;
+    }
+    
+    public void run(){
+        while(true){
+            synchronized(sun){
+            if(sun.getislimit()>sun.getislem()){//getAnsu || nullsa sonrası patlıyor.
+                Random ra=new Random();
+                int r=ra.nextInt(sun.getiskabul())+1;
+                sun.setislem(sun.getislem()+r);
+            }
+            if(sun.getislem()>sun.getislimit())
+                sun.setislem(sun.getislimit());
+            sun.setKapas((float)(((float)sun.getislem()/(float)sun.getislimit())*100.00));
+            }
+            try {
+                Thread.sleep(sun.getiskasu());
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Istekal.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+}
+
+////////// Istekdon //////////
+
+package yazlab2;
+
+import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class Istekdon extends Thread {
+    
+    private Sunucu sun;
+    public Istekdon(Sunucu gels){
+        sun=gels;
+    }
+    
+    public void run(){
+        while(true){
+            synchronized(sun){
+            if(sun.getislem()>0){
+                Random ra=new Random();
+                int r=ra.nextInt(50)+1;
+                sun.setislem(sun.getislem()-r);
+            }
+            if(sun.getislem()<0)
+                sun.setislem(0);
+            //System.out.println("Çözülen işlemden sonra kalan işlem: "+sun.getislem());
+            sun.setKapas((float)(((float)sun.getislem()/(float)sun.getislimit())*100.00));
+            if(sun.isTdur())
+            break;
+            }
+            try {
+                Thread.sleep(sun.getissure());
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Istekal.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+}
+
+///////////// Sunkont /////////
+
+package yazlab2;
+
+import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class Sunkont extends Thread {
+    
+    private ArrayList<Sunucu> snc=new ArrayList<Sunucu>();
+    public Sunkont(ArrayList<Sunucu> gel){
+        snc=gel;
+    }
+ 
+    public void run(){
+        while(true){
+            for(int i=1;i<snc.size();i++){
+                if(snc.size()>3&&snc.get(i).getislem()==0){
+                    for(int j=1;j<snc.size();j++)
+                        snc.get(j).setTdur(true);
+                    try {
+                        Thread.sleep(snc.get(i).getissure()+100);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Sunkont.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    snc.remove(i);
+                    for(int j=1;j<snc.size();j++)
+                        snc.get(j).setTdur(false);
+                    Sunbas as=new Sunbas(snc);
+                    as.start();  break;
+                }
+                if(snc.get(i).getKapas()>70){
+                    int islem=snc.get(i).getislem()/2;
+                    snc.get(i).setislem(islem);
+                    snc.add(new Sunucu(snc.get(0),5000,50,300));
+                    snc.get(snc.size()-1).setislem(islem);
+                    for(int j=1;j<snc.size();j++)
+                        snc.get(j).setTdur(true);
+                    try {
+                        Thread.sleep(snc.get(i).getissure()+100);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Sunkont.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    for(int j=1;j<snc.size();j++)
+                        snc.get(j).setTdur(false);
+                    Sunbas as=new Sunbas(snc);
+                    as.start();
+                    break;
+                }
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Sunkont.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            }
+        }
+    }
+
+////////////////// Sunbas //////
+
+package yazlab2;
+
+import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class Sunbas extends Thread {
+    
+    private int snsayi;
+    private ArrayList<Sunucu> snc=new ArrayList<Sunucu>();
+    public Sunbas(ArrayList<Sunucu> gel){
+        snc=gel;
+    }
+
+    public void run(){
+        Altis alid=new Altis(snc);
+        alid.start();    
+        for(int i=1;i<snc.size();i++){
+            Istekdon alia=new Istekdon(snc.get(i));
+            alia.start();
+        }
+    }
+            
+}
+
+/////////// Kapasite //////
+
+package yazlab2;
+
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JFrame;
+
+public class Kapasite extends Thread{
+    
+    private ArrayList<Sunucu> snc=new ArrayList<Sunucu>();
+    
+    public Kapasite(ArrayList<Sunucu> sunc){
+        snc=sunc;
+    }
+    
+    public void run(){
+        Arayuz pen=new Arayuz();
+        pen.setSs(snc);
+        Color asd= new Color(200,200,200);
+        pen.setBackground(asd);
+        pen.setSize(1100, 1100);
+        pen.setVisible(true);
+        pen.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        while(true){
+            pen.repaint();
+            for(int i=0;i<snc.size();i++){
+                
+                
+                System.out.println(i+". Sunucu Kapasitesi % "+snc.get(i).getKapas());
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Kapasite.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+    
+}
+
+////////// Arayuz /////////
+
+package yazlab2;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JFrame;
+
+public class Arayuz extends JFrame{
+    
+    private ArrayList<Sunucu> ss=new ArrayList<Sunucu>();
+    public Arayuz(){
+        super();
+    }
+    
+    public void paint(Graphics g){
+        super.paint(g);
+        for(int i=0;i<ss.size();i++){
+            g.setColor(Color.black);
+            g.fillRect(100,100+(i*100),609,69);
+            g.drawString("Sunucu: "+(i+1),750,100+(i*100)+40);
+            if(i==0)
+                g.drawString("(Ana Sunucu)",810,100+(i*100)+40);
+        }
+        
+        for(int i=0;i<ss.size();i++){
+            g.setColor(Color.WHITE);
+            g.fillRect(104,104+(i*100),600*(int)ss.get(i).getKapas()/100,60);
+            g.setColor(Color.RED);
+            g.drawString("% "+(int)ss.get(i).getKapas(),360,100+(i*100)+40);
+        }
+    
+    }
+    
+    public ArrayList<Sunucu> getSs() {
+        return ss;
+    }
+    public void setSs(ArrayList<Sunucu> ss) {
+        this.ss = ss;
+    }
+    
+}
+
+///////////// Altis /////////
+
+package yazlab2;
+
+import java.util.ArrayList;
+import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class Altis extends Thread {
+    
+    private ArrayList<Sunucu> sun=new ArrayList<Sunucu>();
+    public Altis(ArrayList<Sunucu> sunu){
+        sun=sunu;
+    }
+    
+    public void run(){
+        boolean kont=true;
+        while(kont){
+            for(int i=1;i<sun.size();i++){
+            synchronized(sun.get(i)){
+                if(sun.get(i).getislimit()>sun.get(i).getislem()&&sun.get(0).getislem()>0){
+                    Random ra=new Random();
+                    int r=ra.nextInt(sun.get(i).getiskabul())+1;
+                    sun.get(i).setislem(sun.get(i).getislem()+r);
+                    if(sun.get(i).getislem()>sun.get(i).getislimit()){
+                        r=r-(sun.get(i).getislem()-sun.get(i).getislimit());
+                        sun.get(i).setislem(sun.get(i).getislimit());   
+                    }
+                    sun.get(0).setislem(sun.get(0).getislem()-r);
+                }
+                sun.get(i).setKapas((float)(((float)sun.get(i).getislem()/(float)sun.get(i).getislimit())*100.00));
+            }
+            if(sun.get(i).isTdur()){
+               kont=false; break;               
+            }
+            }
+            try {
+                Thread.sleep(sun.get(1).getiskasu()-sun.size());
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Istekal.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }    
+}
